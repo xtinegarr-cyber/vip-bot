@@ -1,11 +1,18 @@
 const { Client, GatewayIntentBits } = require("discord.js");
 
 // ─── CONFIG ─────────────────────────────────────────────────────────────────
-const TOKEN    = process.env.TOKEN;
-const GUILD_ID = "1496924890215878846";
-const ROLE_IDS = [
-  "1496978497887932547",
-  "1397451041640939601",
+const TOKEN = process.env.TOKEN;
+
+// Each server has its own guild ID and roles to assign
+const SERVERS = [
+  {
+    guildId: "1496924890215878846",
+    roleIds: ["1496978497887932547"],
+  },
+  {
+    guildId: "1397451041640939600",
+    roleIds: ["1397451041640939601"],
+  },
 ];
 
 // Any of these strings will qualify someone for the roles
@@ -31,17 +38,19 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
   const member = newPresence?.member;
   if (!member || member.user.bot) return;
 
-  if (newPresence.guild?.id !== GUILD_ID) return;
+  const guildId = newPresence.guild?.id;
+  const server = SERVERS.find(s => s.guildId === guildId);
+  if (!server) return;
 
   const customStatus = newPresence.activities?.find(a => a.type === 4);
   const statusText = customStatus?.state ?? "";
   const hasLink = REQUIRED_TEXTS.some(t => statusText.toLowerCase().includes(t.toLowerCase()));
 
   try {
-    for (const roleId of ROLE_IDS) {
+    for (const roleId of server.roleIds) {
       const role = newPresence.guild.roles.cache.get(roleId);
       if (!role) {
-        console.warn(`⚠️  Role ${roleId} not found.`);
+        console.warn(`⚠️  Role ${roleId} not found in guild ${guildId}.`);
         continue;
       }
 
@@ -49,10 +58,10 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
 
       if (hasLink && !hasRole) {
         await member.roles.add(role);
-        console.log(`➕ Gave ${role.name} to ${member.user.tag}`);
+        console.log(`➕ Gave ${role.name} to ${member.user.tag} in ${newPresence.guild.name}`);
       } else if (!hasLink && hasRole) {
         await member.roles.remove(role);
-        console.log(`➖ Removed ${role.name} from ${member.user.tag}`);
+        console.log(`➖ Removed ${role.name} from ${member.user.tag} in ${newPresence.guild.name}`);
       }
     }
   } catch (err) {
